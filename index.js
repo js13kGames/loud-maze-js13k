@@ -15,14 +15,15 @@ let levelBaseY;
 
 let playerX;
 let playerY;
+let playerMoves, playerWallsHit, playerAlreadyHitWalls, playerBeginTime;
 
 const genLevel = () => {
 
   levelSize = 2 * currentLevel + 5;
-  levelCellSize = 20;
+  levelCellSize = currentLevel < 10 ? 20 : (s - 40)/levelSize;
 
   levelBaseX =
-  levelBaseY = s/2 - levelSize * levelCellSize / 2;
+  levelBaseY = s/2 - (levelSize-2) * levelCellSize / 2;
   
   let genStack = [[1,1]];
   let genStackTop = 1;
@@ -89,6 +90,7 @@ const genLevel = () => {
       [ playerX, playerY ] = genFarthest;
       playerMoves = 0;
       playerWallsHit = 0;
+      playerAlreadyHitWalls = [];
       playerBeginTime = new Date;
 
       setState(PLAYING);
@@ -129,21 +131,31 @@ xx xxx xxx xxx
         char === 'x')
   );
 
-const titleCellSize = 10;
-const titleBaseX = s/2 - menuTitle[0].length * titleCellSize / 2;
-const titleBaseY = s/2 - menuTitle.length * titleCellSize / 2;
+const titleCellSize = 20;
+const titleBaseX = s/2 - (menuTitle[0].length - 2) * titleCellSize / 2;
+const titleBaseY = s/4 - menuTitle.length * titleCellSize / 2;
 
 const loadingSizeX = 20;
 const loadingSizeY = 20;
 
 const menuLevelTexts = [
-  'just turn around',
-  'simply more turns',
-  'the goal is always on the top left',
-  'the path is always the longest one',
+  'wasd hjkl arrows + enter/space',
+  'maze reveals after completion',
+  'goal always in top left',
+  'always in furthest path',
+  'linear incrementation by 2',
+  'best played without looking',
   'isn\'t it somewhat peaceful?',
-  'feel the maze'
+  'feel the maze',
+  'well, you\'re persistent',
+  'sounds like you\'re enjoying it'
 ];
+const finishedTexts = [
+  'press enter/space to continue',
+  'yup, this is what you were in',
+  'should be easy',
+  'progress is saved'
+]
 
 let menuTicksSinceLastInteraction = 0;
 let menuTicks = 0;
@@ -170,23 +182,42 @@ const draw3dCell = (cellSize, offset, baseX, baseY, colorTop, colorBottom, color
   ctx.lineTo(joinX, joinY - cellSize);
   ctx.fill();
 }
+const printText = (fontSize, text, x, y, center) => {
+  ctx.font = `${fontSize}px monospace`;
+  ctx.fillText(text, x - (center ? ctx.measureText(text).width / 2 : 0 ), y);
+}
 
 let moveTicksSinceLastInteraction = 0;
 const moveInDirection = (x, y) => {
   const nx = playerX + x*2;
   const ny = playerY + y*2;
+  const hnx = playerX + x;
+  const hny = playerY + y;
 
-  switch(levelMap[playerX + x][playerY + y]) {
+  switch(levelMap[hnx][hny]) {
     case WALL:
+      const wallHash = [hnx, hny] + '';
+      if(playerAlreadyHitWalls.includes(wallHash)) {
+        ++playerWallsHit;
+      } else {
+        playerAlreadyHitWalls.push(wallHash);
+      }
       return HIT_WALL;
   }
 
+  ++playerMoves;
   switch(levelMap[nx][ny]) {
     case EMPTY:
       playerX = nx;
       playerY = ny;
       return CAN_MOVE;
     case WALL:
+      const wallHash = [nx, ny] + '';
+      if(playerAlreadyHitWalls.includes(wallHash)) {
+        ++playerWallsHit;
+      } else {
+        playerAlreadyHitWalls.push(wallHash);
+      }
       return HIT_WALL;
     case END:
       return HIT_FINISH;
@@ -198,17 +229,28 @@ const movePlayer = () => {
 
   if(moveTicksSinceLastInteraction > 10) {
 
+    ctx.beginPath();
+    ctx.moveTo(s/2, s/2);
     if(keys[LEFT]) {
       result = moveInDirection(-1,0);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(0, s)
+       
 
     } else if(keys[UP]) {
       result = moveInDirection(0,-1);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(s, 0)
 
     } else if(keys[RIGHT]) {
       result = moveInDirection(+1,0);
+      ctx.lineTo(s, 0);
+      ctx.lineTo(s, s)
 
     } else if(keys[DOWN]) {
       result = moveInDirection(0,+1);
+      ctx.lineTo(s, s);
+      ctx.lineTo(0, s)
     }
 
     switch(result) {
@@ -217,19 +259,22 @@ const movePlayer = () => {
       case CAN_MOVE:
         moveTicksSinceLastInteraction = 0;
         ctx.fillStyle = '#eee';
-        ctx.fillRect(0, 0, s, s);
+        ctx.fill();
+				globalAlphaTick = 0;
         soundPlayMove();
         break;
       case HIT_WALL:
         moveTicksSinceLastInteraction = 0;
         ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, s, s);
+        ctx.fill();
+				globalAlphaTick = 0;
         soundPlayHit();
         break;
       case HIT_FINISH:
         moveTicksSinceLastInteraction = 0;
         ctx.fillStyle = '#3e7';
-        ctx.fillRect(0, 0, s, s);
+        ctx.fill();
+				globalAlphaTick = 0;
         soundPlayFinish();
         break;
     }
@@ -298,24 +343,47 @@ const setState = (newState) => {
 const anim = () => {
   requestAnimationFrame(anim);
   
-  if(globalAlphaTick < 100) {
-    ++globalAlphaTick;
-    ctx.globalAlpha = globalAlphaTick / 100;
-  }
-
   switch(state) {
     case MENU:
-      ctx.fillStyle = 'rgba(16,16,16,.1)';
+      if(globalAlphaTick < 100) {
+        ++globalAlphaTick;
+        ctx.globalAlpha = globalAlphaTick / 100;
+      }
+
+      ctx.fillStyle = '#111';
       ctx.fillRect(0,0,s,s);
 
       ++menuTicks;
       ++menuTicksSinceLastInteraction;
 
-      if(keys[NEXT] && menuTicksSinceLastInteraction > 10) {
-        menuTicksSinceLastInteraction = 0;
-        setState(LOADING);
-        genLevel();
-        return;
+      if(menuTicksSinceLastInteraction > 10) {
+
+        let interacted = true;
+        if(keys[NEXT] || keys[UP] || keys[DOWN]) {
+          setState(LOADING);
+          soundPlayFinish();
+          genLevel();
+        } else if(keys[LEFT]) {
+          if(currentLevel > 0) {
+            --currentLevel;
+            soundPlayMove();
+          } else {
+            soundPlayHit();
+          }
+        } else if(keys[RIGHT]) {
+          if(currentLevel < highestLevel) {
+            ++currentLevel;
+            soundPlayMove();
+          } else {
+            soundPlayHit();
+          }
+        } else {
+          interacted = false;
+        }
+
+        if(interacted) {
+          menuTicksSinceLastInteraction = 0;
+        }
       }
       
       menuTitle.forEach((row, y) => row.forEach((cell, x) => {
@@ -329,9 +397,45 @@ const anim = () => {
 
         draw3dCell(titleCellSize, offset, baseX, baseY, '#eee', '#bbb', '#888');
       }));
+
+      ctx.fillStyle = '#eee';
+      printText(60, currentLevel, s/2, 265, true);
+      printText(20, menuLevelTexts[currentLevel] || `enjoy level ${currentLevel}!`, s/2, 320, true);
+
+      ctx.fillStyle = '#888';
+      printText(16, '@MateiCopot', 235, 410);
+      printText(16, '/towc.eu', 235, 440);
+      printText(16, 'matei@copot.eu', 235, 380);
+
+      ctx.fillStyle = '#89e';
+      printText(16, 't', 180, 410);
+      ctx.fillStyle = '#45a';
+      printText(16, 'f', 180, 440);
+      ctx.fillStyle = '#a45';
+      printText(16, 'm', 180, 380);
+
+      ctx.fillStyle = currentLevel > 0 ? '#aaa' : '#333';
+      ctx.beginPath();
+      ctx.moveTo(100, 243);
+      ctx.lineTo(120, 223);
+      ctx.lineTo(120, 263);
+      ctx.fill();
+
+      ctx.fillStyle = currentLevel < highestLevel ? '#aaa' : '#333';
+      ctx.beginPath();
+      ctx.moveTo(412, 243);
+      ctx.lineTo(392, 223);
+      ctx.lineTo(392, 263);
+      ctx.fill();
+    
       break;
     case LOADING:
-      ctx.fillStyle = 'rgba(239,239,239,.2)';
+      if(globalAlphaTick < 30) {
+        ++globalAlphaTick;
+        ctx.globalAlpha = globalAlphaTick / 30;
+      }
+
+      ctx.fillStyle = '#eee';
       ctx.fillRect(0, 0, s, s);
 
       ++menuTicks;
@@ -345,17 +449,42 @@ const anim = () => {
       }));
       break;
     case PLAYING:
-      ctx.fillStyle = 'rgba(127,127,127,.2)';
+      if(globalAlphaTick < 100) {
+        ++globalAlphaTick;
+        ctx.globalAlpha = globalAlphaTick / 100;
+      }
+
+      ctx.fillStyle = '#888';
       ctx.fillRect(0, 0, s, s);
+
+      let delta = new Date - playerBeginTime;
+      ctx.fillStyle = '#f22';
+      printText(100, delta / 1000 |0, s/2, s/2, true);
+      printText(20, `${playerWallsHit} | ${playerMoves}`, s/2, 300, true);
 
       switch(movePlayer()) {
         case HIT_FINISH:
+          ++currentLevel;
+          if(currentLevel > highestLevel) {
+            localStorage.highestLevel = highestLevel;
+          }
           setState(FINISHED);
           break;
       }
 
+      ++menuTicksSinceLastInteraction;
+      if(keys[NEXT] && menuTicksSinceLastInteraction > 10) {
+        menuTicksSinceLastInteraction = 0;
+        setState(MENU);
+      }
+
       break;
     case FINISHED:
+      if(globalAlphaTick < 30) {
+        ++globalAlphaTick;
+        ctx.globalAlpha = globalAlphaTick / 30;
+      }
+
       ctx.fillStyle = '#111';
       ctx.fillRect(0, 0, s, s);
 
@@ -384,7 +513,10 @@ const anim = () => {
             draw3dCell(levelCellSize, offset, baseX, baseY, '#3e7', '#2b5', '#183');
           } break;
         }
-      }))
+      }));
+
+      ctx.fillStyle = '#f22';
+      printText(20, finishedTexts[currentLevel] || '', s/2, 460, true);
 
       switch(movePlayer()) {
         case CAN_MOVE:
