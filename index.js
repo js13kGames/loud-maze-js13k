@@ -98,7 +98,7 @@ const genLevel = () => {
   },  16);
 };
 
-const [LEFT, UP, RIGHT, DOWN, NEXT, VOL_UP, VOL_DOWN] = Array(7).fill().map((_,i)=>i);
+const [LEFT, UP, RIGHT, DOWN, NEXT, VOL_UP, VOL_DOWN, HELP] = Array(20).fill().map((_,i)=>i);
 let keys = Array(5).fill(false);
 let keyCodes = [
   [37, 65, 72],
@@ -107,7 +107,8 @@ let keyCodes = [
   [40, 83, 74],
   [13, 32],
   [77],
-  [78]
+  [78],
+  [27]
 ];
 const setKey = (e, value) => {
   for(let i = 0; i < keyCodes.length; ++i) {
@@ -120,7 +121,16 @@ const setKey = (e, value) => {
         } else if(i === VOL_DOWN) {
           masterGain.gain.value = Math.max(masterGain.gain.value * .9 - .01, 0);
         }
+
+        if(i === HELP && state !== HELP) {
+          setState(HELP);
+        }
+      } else {
+        if(i === HELP && state === HELP) {
+          setState(prevState);
+        }
       }
+
       return e.preventDefault();
     }
   }
@@ -290,14 +300,6 @@ const moveInDirection = (x, y) => {
       playerX = nx;
       playerY = ny;
       return CAN_MOVE;
-    case WALL:
-      const wallHash = [nx, ny] + '';
-      if(playerAlreadyHitWalls.includes(wallHash)) {
-        ++playerWallsHit;
-      } else {
-        playerAlreadyHitWalls.push(wallHash);
-      }
-      return HIT_WALL;
     case END:
       return HIT_FINISH;
   }
@@ -394,12 +396,12 @@ const soundPlayMove = () => {
 const soundPlayHit = () => {
   const [ osc, gain, time ] = getOscGainAndTime();
 
-  osc.frequency.value = 440;
-  osc.frequency.exponentialRampToValueAtTime(300, time + .3)
+  osc.frequency.value = 300;
+  osc.frequency.exponentialRampToValueAtTime(200, time + .6)
   osc.type = 'sine';
   gain.gain.setValueAtTime(.5, time);
-  gain.gain.exponentialRampToValueAtTime(1, time + .1);
-  gain.gain.exponentialRampToValueAtTime(.001, time + .3);
+  gain.gain.exponentialRampToValueAtTime(1, time + .2);
+  gain.gain.exponentialRampToValueAtTime(.001, time + .6);
 
   osc.start(time);
   osc.stop(time + .3);
@@ -407,7 +409,7 @@ const soundPlayHit = () => {
 const soundPlayFinish = () => {
   const [ osc, gain, time ] = getOscGainAndTime();
 
-  osc.frequency.value = 4400;
+  osc.frequency.value = 440;
   osc.frequency.exponentialRampToValueAtTime(880, time + .3)
   osc.type = 'sine';
   gain.gain.setValueAtTime(.5, time);
@@ -420,7 +422,9 @@ const soundPlayFinish = () => {
 
 let globalAlphaTick;
 let state;
+let prevState;
 const setState = (newState) => {
+  prevState = state;
   state = newState;
   globalAlphaTick = 0;
 }
@@ -428,6 +432,31 @@ const anim = () => {
   requestAnimationFrame(anim);
   
   switch(state) {
+    case HELP:
+      if(globalAlphaTick < 100) {
+        ++globalAlphaTick;
+        ctx.globalAlpha = globalAlphaTick / 100;
+      }
+
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, s, s);
+
+      ctx.fillStyle = '#eee';
+      printText(30, 'HELP', s/2, 60, true);
+
+      printText(16, 'try and navigate the mazes by memory.', 10, 120);
+      printText(16, 'aim for never re-hitting the same wall.', 10, 150);
+      printText(16, 'skip past seeing the layout with space/enter.', 10, 180);
+
+      printText(20, 'navigate around blind maze', s/2, 240, true);
+      printText(16, 'awsd, hjkl, arrows or click/tap away from center', s/2, 270, true);
+
+      printText(20, 'progress or choose level', s/2, 330, true);
+      printText(16, 'space, enter, or click/tap around center', s/2, 350, true);
+
+      printText(20, '- volume +', s/2, 410, true);
+      printText(16, 'N and M', s/2, 440, true);
+      break;
     case MENU:
       if(globalAlphaTick < 100) {
         ++globalAlphaTick;
@@ -435,7 +464,7 @@ const anim = () => {
       }
 
       ctx.fillStyle = '#111';
-      ctx.fillRect(0,0,s,s);
+      ctx.fillRect(0, 0, s, s);
 
       ++menuTicks;
       ++menuTicksSinceLastInteraction;
@@ -533,9 +562,9 @@ const anim = () => {
       }));
       break;
     case PLAYING:
-      if(globalAlphaTick < 300) {
+      if(globalAlphaTick < 700) {
         ++globalAlphaTick;
-        ctx.globalAlpha = globalAlphaTick / 300;
+        ctx.globalAlpha = globalAlphaTick / 700;
       }
 
       ctx.fillStyle = '#888';
