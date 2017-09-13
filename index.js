@@ -117,6 +117,38 @@ const setKey = (e, value) => {
 }
 window.addEventListener('keydown', (e) => setKey(e, true));
 window.addEventListener('keyup', (e) => setKey(e, false));
+const setKeyFromTouch = (e, value) => {
+  const x = e.clientX - window.innerWidth / 2;
+  const y = e.clientY - window.innerHeight / 2;
+
+  let interacted = true;
+  if(x**2 + y**2 < 50**2) {
+    keys[NEXT] = value;
+
+  } else if(x < y && x < -y) {
+    keys[LEFT] = value;
+
+  } else if(x > y && x < -y ) {
+    keys[UP] = value;
+
+  } else if(x > y && x > -y ) {
+    keys[RIGHT] = value;
+
+  } else if(x < y && x > -y) {
+    keys[DOWN] = value;
+
+  } else {
+    interacted = false;
+  }
+
+  if(interacted) {
+    e.preventDefault();
+  }
+}
+window.addEventListener('mousedown', (e) => setKeyFromTouch(e, true));
+window.addEventListener('mouseup', (e) => keys.fill(false));
+window.addEventListener('touchstart', (e) => setKeyFromTouch(e.touches[0], true));
+window.addEventListener('touchend', (e) => keys.fill(false));
 
 const menuTitle = `
 x            x
@@ -151,10 +183,10 @@ const menuLevelTexts = [
   'sounds like you\'re enjoying it'
 ];
 const finishedTexts = [
-  'press enter/space to continue',
-  'yup, this is what you were in',
-  'should be easy',
-  'progress is saved'
+  'press enter/space to continue?',
+  'yup, this is what I was in',
+  'its so isolated, and relaxing',
+  'progress is saved, looks like'
 ]
 
 let menuTicksSinceLastInteraction = 0;
@@ -193,6 +225,7 @@ const moveInDirection = (x, y) => {
   const ny = playerY + y*2;
   const hnx = playerX + x;
   const hny = playerY + y;
+  ++playerMoves;
 
   switch(levelMap[hnx][hny]) {
     case WALL:
@@ -205,7 +238,6 @@ const moveInDirection = (x, y) => {
       return HIT_WALL;
   }
 
-  ++playerMoves;
   switch(levelMap[nx][ny]) {
     case EMPTY:
       playerX = nx;
@@ -464,8 +496,8 @@ const anim = () => {
 
       switch(movePlayer()) {
         case HIT_FINISH:
-          ++currentLevel;
-          if(currentLevel > highestLevel) {
+          if(currentLevel + 1 > highestLevel) {
+            highestLevel = currentLevel + 1;
             localStorage.highestLevel = highestLevel;
           }
           setState(FINISHED);
