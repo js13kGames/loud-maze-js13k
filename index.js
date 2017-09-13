@@ -98,19 +98,29 @@ const genLevel = () => {
   },  16);
 };
 
-const [LEFT, UP, RIGHT, DOWN, NEXT] = Array(5).fill().map((_,i)=>i);
+const [LEFT, UP, RIGHT, DOWN, NEXT, VOL_UP, VOL_DOWN] = Array(7).fill().map((_,i)=>i);
 let keys = Array(5).fill(false);
 let keyCodes = [
   [37, 65, 72],
   [38, 87, 75],
   [39, 68, 76],
   [40, 83, 74],
-  [13, 32]
+  [13, 32],
+  [77],
+  [78]
 ];
 const setKey = (e, value) => {
   for(let i = 0; i < keyCodes.length; ++i) {
     if(keyCodes[i].includes(e.keyCode)) {
       keys[i] = value;
+
+      if(value) {
+        if(i === VOL_UP) {
+          masterGain.gain.value = Math.min(masterGain.gain.value / .9 + .01, 1);
+        } else if(i === VOL_DOWN) {
+          masterGain.gain.value = Math.max(masterGain.gain.value * .9 - .01, 0);
+        }
+      }
       return e.preventDefault();
     }
   }
@@ -176,7 +186,9 @@ const menuLevelTexts = [
   'there are answers',
   'some things begin',
   'coffee is almost ready',
-  'you do you'
+  'you do you',
+  'that\'s nice',
+  'time to go'
 ];
 const playingTexts = [
   [
@@ -192,9 +204,9 @@ const playingTexts = [
     'my arms are missing. It doesn\'t hurt. What was I',
     'doing before getting here? Who am I?'
   ], [
-    'It is as if I was one with myself, finally. I don\'t feel',
-    'hungry or thirsty. In fact, I don\'t need anything from',
-    'life. Is this how you\'ve always been?'
+    'It is as if I was one with myself, finally. I don\'t',
+    'feel hungry or thirsty. In fact, I don\'t need',
+    'anything from life. Is this how you\'ve always been?'
   ], [
     'I can really push my limits in here. A simple goal,',
     'and it\'s on the top left. Looks like I always need',
@@ -203,6 +215,14 @@ const playingTexts = [
     'I\'m going to spend some time going through these.',
     '',
     'I hope you don\'t mind. There\'s no rush here.',
+  ], [
+    '',
+    '...',
+    ''
+  ], [
+    '',
+    'I don\'t need answers anymore',
+    ''
   ]
 ]
 const finishedTexts = [
@@ -211,7 +231,9 @@ const finishedTexts = [
   'What\'s around me?',
   'I like this place',
   'Am I alone?',
-  'I don\'t even care'
+  'I don\'t even care',
+  'What is anything anyway?',
+  'I am no longer lost'
 ]
 
 let menuTicksSinceLastInteraction = 0;
@@ -315,6 +337,7 @@ const movePlayer = () => {
         break;
       case CAN_MOVE:
         moveTicksSinceLastInteraction = 0;
+        ctx.globalAlpha = 1;
         ctx.fillStyle = '#eee';
         ctx.fill();
 				globalAlphaTick = 0;
@@ -322,6 +345,7 @@ const movePlayer = () => {
         break;
       case HIT_WALL:
         moveTicksSinceLastInteraction = 0;
+        ctx.globalAlpha = 1;
         ctx.fillStyle = '#111';
         ctx.fill();
 				globalAlphaTick = 0;
@@ -329,6 +353,7 @@ const movePlayer = () => {
         break;
       case HIT_FINISH:
         moveTicksSinceLastInteraction = 0;
+        ctx.globalAlpha = 1;
         ctx.fillStyle = '#3e7';
         ctx.fill();
 				globalAlphaTick = 0;
@@ -342,12 +367,14 @@ const movePlayer = () => {
 }
 
 const actx = new AudioContext;
+const masterGain = actx.createGain();
+masterGain.connect(actx.destination);
 const getOscGainAndTime = () => {
   const osc = actx.createOscillator();
   const gain = actx.createGain();
 
   osc.connect(gain);
-  gain.connect(actx.destination);
+  gain.connect(masterGain);
 
   return [ osc, gain, actx.currentTime ];
 }
@@ -367,9 +394,9 @@ const soundPlayMove = () => {
 const soundPlayHit = () => {
   const [ osc, gain, time ] = getOscGainAndTime();
 
-  osc.frequency.value = 550;
-  osc.frequency.exponentialRampToValueAtTime(440, time + .3)
-  osc.type = 'triangle';
+  osc.frequency.value = 440;
+  osc.frequency.exponentialRampToValueAtTime(300, time + .3)
+  osc.type = 'sine';
   gain.gain.setValueAtTime(.5, time);
   gain.gain.exponentialRampToValueAtTime(1, time + .1);
   gain.gain.exponentialRampToValueAtTime(.001, time + .3);
@@ -506,9 +533,9 @@ const anim = () => {
       }));
       break;
     case PLAYING:
-      if(globalAlphaTick < 100) {
+      if(globalAlphaTick < 300) {
         ++globalAlphaTick;
-        ctx.globalAlpha = globalAlphaTick / 100;
+        ctx.globalAlpha = globalAlphaTick / 300;
       }
 
       ctx.fillStyle = '#888';
@@ -604,3 +631,23 @@ const anim = () => {
 
 setState(MENU);
 anim();
+
+const getMusicRound = () => {
+  const seed = Math.random() * 12 |0;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  const time = actx.currentTime;
+  const timeDelta = Math.random() * 4;
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+
+  osc.type = Math.random() < .2 ? 'square' : 'sine';
+  osc.frequency.value = 220 * seed;
+  osc.frequency.exponentialRampToValueAtTime(440 * seed + (Math.random() < .2 ? -220: 220), time + timeDelta/2)
+  gain.gain.setValueAtTime(state === MENU ? .1 : .005, time);
+  gain.gain.exponentialRampToValueAtTime(.0001, time + timeDelta);
+  osc.start(time);
+  osc.stop(time + timeDelta);
+}
+setInterval(getMusicRound, 200);
