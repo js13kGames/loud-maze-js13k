@@ -171,22 +171,47 @@ const loadingSizeX = 20;
 const loadingSizeY = 20;
 
 const menuLevelTexts = [
-  'wasd hjkl arrows + enter/space',
-  'maze reveals after completion',
-  'goal always in top left',
-  'always in furthest path',
-  'linear incrementation by 2',
-  'best played without looking',
-  'isn\'t it somewhat peaceful?',
-  'feel the maze',
-  'well, you\'re persistent',
-  'sounds like you\'re enjoying it'
+  'you are welcome',
+  'we understand',
+  'there are answers',
+  'some things begin',
+  'coffee is almost ready',
+  'you do you'
 ];
+const playingTexts = [
+  [
+    'I need to take my time. I don\'t know where I am.',
+    'I can\'t see, but I can hear. It feels like a maze.',
+    'Someone tipped me about arrow keys a bit back'
+  ], [
+    'Who knew? I have no clue where I am, but',
+    'I am finding it oddly relaxing. I still need to',
+    'concentrate. It\'s not as easy as it looks'
+  ], [
+    'It is slightly unsettling. I didn\'t even notice',
+    'my arms are missing. It doesn\'t hurt. What was I',
+    'doing before getting here? Who am I?'
+  ], [
+    'It is as if I was one with myself, finally. I don\'t feel',
+    'hungry or thirsty. In fact, I don\'t need anything from',
+    'life. Is this how you\'ve always been?'
+  ], [
+    'I can really push my limits in here. A simple goal,',
+    'and it\'s on the top left. Looks like I always need',
+    'to take the longest path. This might take a while'
+  ], [
+    'I\'m going to spend some time going through these.',
+    '',
+    'I hope you don\'t mind. There\'s no rush here.',
+  ]
+]
 const finishedTexts = [
-  'press enter/space to continue?',
-  'yup, this is what I was in',
-  'its so isolated, and relaxing',
-  'progress is saved, looks like'
+  'Am I watching myself?',
+  'what is this even made of?',
+  'What\'s around me?',
+  'I like this place',
+  'Am I alone?',
+  'I don\'t even care'
 ]
 
 let menuTicksSinceLastInteraction = 0;
@@ -489,10 +514,20 @@ const anim = () => {
       ctx.fillStyle = '#888';
       ctx.fillRect(0, 0, s, s);
 
-      let delta = new Date - playerBeginTime;
       ctx.fillStyle = '#f22';
-      printText(100, delta / 1000 |0, s/2, s/2, true);
-      printText(20, `${playerWallsHit} | ${playerMoves}`, s/2, 300, true);
+      let delta = new Date - playerBeginTime;
+      printText(100, delta / 1000 |0, s/2, 200, true);
+      printText(50, playerWallsHit, s/2, 320, true);
+
+      ctx.fillStyle = '#333';
+      printText(20, 'seconds', s/2, 230, true);
+      printText(16, 'walls re-hit', s/2, 350, true)
+
+      ctx.fillStyle = '#111';
+      const playingText = playingTexts[currentLevel] || ['', '', ''];
+      printText(16, playingText[0], s/2, 400, true);
+      printText(16, playingText[1], s/2, 430, true);
+      printText(16, playingText[2], s/2, 460, true);
 
       switch(movePlayer()) {
         case HIT_FINISH:
